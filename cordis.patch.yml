@@ -1,0 +1,5 @@
+# Before enabling, disable legacy task-list DID (didLog: false) or use the task-only build.
+- insert:
+    - id: what-we-did
+      name: dsh-what-we-did
+      config: {}

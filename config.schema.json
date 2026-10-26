@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "display": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "lookbackHours": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "default": 24
+        },
+        "maxRecords": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "default": 12
+        },
+        "maxChars": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "default": 4000
+        },
+        "maxResidentChars": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "default": 8000
+        },
+        "deltaMaxEvents": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "default": 20
+        },
+        "deltaMaxChars": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "default": 2000
+        },
+        "excludeOwnVisibleTurns": {
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    "retention": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "mode"
+          ],
+          "properties": {
+            "mode": {
+              "const": "forever"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "mode",
+            "durationMs",
+            "expiryAction"
+          ],
+          "properties": {
+            "mode": {
+              "const": "ttl"
+            },
+            "durationMs": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "expiryAction": {
+              "enum": [
+                "archive",
+                "delete"
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "modelAdjustment": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "allowedFields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "bounds": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": [
+              "min",
+              "max"
+            ],
+            "properties": {
+              "min": {
+                "type": "number"
+              },
+              "max": {
+                "type": "number"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "userLockedFields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "minTurnsBetweenChanges": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

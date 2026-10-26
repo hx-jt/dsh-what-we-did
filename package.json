@@ -1,0 +1,62 @@
+{
+  "name": "dsh-what-we-did",
+  "version": "0.1.1",
+  "description": "what we did: independent per-turn experience ledger for the user and Agent, with per-session incremental delivery",
+  "type": "module",
+  "license": "MIT",
+  "main": "./src/index.js",
+  "types": "./types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./types/index.d.ts",
+      "default": "./src/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src/",
+    "scripts/",
+    "skills/",
+    "types/",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE",
+    "config.example.json",
+    "config.schema.json",
+    "docs/"
+  ],
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "dependencies": {
+    "@deepseek-ai/schemastery": "^3.18.1",
+    "zod": "^4.4.3"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "4.0.5-alpha.1",
+    "@deepseek-ai/dsh-agent": "0.2.1-alpha.1 || 0.2.1-alpha.2",
+    "@deepseek-ai/dsh-session": "0.2.1-alpha.1 || 0.2.1-alpha.2",
+    "@deepseek-ai/dsh-llm": "0.2.1-alpha.1 || 0.2.1-alpha.2",
+    "@deepseek-ai/dsh-tools": "0.2.1-alpha.1 || 0.2.1-alpha.2",
+    "@deepseek-ai/dsh-system-prompt": "0.2.1-alpha.1 || 0.2.1-alpha.2",
+    "@deepseek-ai/dsh-storage-domain": "0.2.1-alpha.1 || 0.2.1-alpha.2"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "test:package": "node test/package.mjs",
+    "check": "node --check src/index.js && node --check src/ledger.js && node --check src/delivery.js && node --check scripts/manage.mjs && npm test && npm run test:package"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hx-jt/dsh-what-we-did.git"
+  },
+  "homepage": "https://github.com/hx-jt/dsh-what-we-did#readme",
+  "bugs": {
+    "url": "https://github.com/hx-jt/dsh-what-we-did/issues"
+  }
+}

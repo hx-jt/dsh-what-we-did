@@ -1,0 +1,43 @@
+{
+  "retention": {
+    "mode": "forever"
+  },
+  "display": {
+    "lookbackHours": 24,
+    "maxRecords": 12,
+    "maxChars": 4000,
+    "maxResidentChars": 8000,
+    "deltaMaxEvents": 20,
+    "deltaMaxChars": 2000,
+    "excludeOwnVisibleTurns": true
+  },
+  "modelAdjustment": {
+    "enabled": true,
+    "allowedFields": [
+      "display.lookbackHours",
+      "display.maxRecords",
+      "display.maxChars",
+      "display.maxResidentChars"
+    ],
+    "bounds": {
+      "display.lookbackHours": {
+        "min": 1,
+        "max": 168
+      },
+      "display.maxRecords": {
+        "min": 1,
+        "max": 50
+      },
+      "display.maxChars": {
+        "min": 500,
+        "max": 12000
+      },
+      "display.maxResidentChars": {
+        "min": 2000,
+        "max": 20000
+      }
+    },
+    "userLockedFields": [],
+    "minTurnsBetweenChanges": 10
+  }
+}

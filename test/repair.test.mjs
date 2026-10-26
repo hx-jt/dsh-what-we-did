@@ -1,0 +1,71 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { fixture,damageReply } from './fixtures.mjs'
+import { Ledger,project } from '../src/ledger.js'
+import { Delivery } from '../src/delivery.js'
+test('repair uses original source sequence, appends auditable correction without TTL renewal or unrelated edits',async()=>{
+ const {ledger:l,tick,store}=await fixture();await damageReply(l)
+ const original=structuredClone(l.state),row=original.records['S:1']
+ tick(1000)
+ const dry=await l.repairReplies()
+ assert.equal(dry.repairableCount,1);assert.equal(l.state.events.length,original.events.length)
+ assert.equal(dry.records[0].evidence.sourceRef.eventSeq,6)
+ const report=await l.repairReplies({execute:true,reason:'verified replay corruption'})
+ assert.equal(report.repairedCount,1)
+ const updated=l.state.records['S:1'],event=l.state.events.at(-1)
+ assert.equal(updated.replyExcerpt,'last valid reply');assert.equal(updated.updatedAt,row.updatedAt)
+ for(const key of Object.keys(row).filter(k=>!['revision','replyExcerpt','replyTruncated'].includes(k)))assert.deepEqual(updated[key],row[key],key)
+ assert.equal(event.kind,'reply_corrected');assert.equal(event.recordedAt,l.clock())
+ assert.equal(event.occurredAt,original.events.find(e=>e.sourceRef?.eventSeq===6).occurredAt)
+ assert.deepEqual(l.state.events.slice(0,-1),original.events)
+ assert.deepEqual(project(l.state.events,l.state.expired),l.state.records)
+ const stable=structuredClone(l.state)
+ assert.equal((await l.repairReplies({execute:true,reason:'repeat'})).repairedCount,0)
+ assert.deepEqual(l.state,stable)
+ const restored=new Ledger(store,{},l.clock);await restored.ready
+ assert.deepEqual(restored.state.records,l.state.records)
+})
+test('no evidence, conflicting sources and expired/archived data are skipped without guessing or revival',async()=>{
+ const {ledger:l,tick}=await fixture({retention:{mode:'ttl',durationMs:86400000,expiryAction:'archive'}})
+ await damageReply(l,'expired');tick(86400001)
+ const preview=await l.repairReplies()
+ assert.equal(preview.repairedCount,0);assert.equal(preview.records[0].reason,'expired')
+ await l.maintain({execute:true,authorization:'user-offline'})
+ const before=structuredClone(l.state)
+ await l.repairReplies({execute:true,reason:'must not revive'})
+ assert.deepEqual(l.state,before)
+ const other=await fixture();await damageReply(other.ledger)
+ await other.ledger.tx(s=>{other.ledger.append(s,'S:1','conflicting-evidence','reply_captured',{replyExcerpt:'conflicting text',replyTruncated:false},0,{sessionId:'S',eventSeq:6,kind:'assistant/message'})})
+ const ambiguous=await other.ledger.repairReplies()
+ assert.equal(ambiguous.repairableCount,0);assert.equal(ambiguous.unresolvedCount,1)
+})
+test('H correction is an incremental revision for a recipient that already saw the empty reply',async()=>{
+ const {ledger:l}=await fixture();await damageReply(l)
+ const d=new Delivery(l),visible={messages:[],originals:[],replacement:0}
+ const baseline=await d.prepare('R',visible)
+ visible.messages.push({deliveryId:baseline.deliveryId,text:baseline.text,createdAt:baseline.createdAt})
+ await d.prepare('R',visible)
+ const oldRevision=l.state.records['S:1'].revision
+ await l.repairReplies({execute:true,reason:'correct existing excerpt'})
+ const delta=await d.prepare('R',visible)
+ assert.equal(delta.kind,'delta');assert.deepEqual(delta.recordIds,['S:1'])
+ assert.match(delta.text,/last valid reply/);assert.match(delta.text,new RegExp(`"revision":${oldRevision+1}`))
+ assert.doesNotMatch(delta.text,/"requestExcerpt"/)
+ visible.messages.push({deliveryId:delta.deliveryId,text:delta.text,createdAt:delta.createdAt})
+ assert.equal(await d.prepare('R',visible),null)
+})
+test('empty tool-only record is reported without invented text and deleted/archived IDs stay excluded',async()=>{
+ const {ledger:l}=await fixture()
+ await l.ingest('empty',{seq:1,time:l.clock(),type:'turn/start',data:{turn:1}})
+ await l.ingest('empty',{seq:2,time:l.clock(),type:'assistant/message',data:{turn:1,message:{content:[{type:'tool-call',name:'fixture',arguments:'{}'}]}}})
+ await l.ingest('empty',{seq:3,time:l.clock(),type:'turn/end',data:{turn:1,reason:{kind:'completed'}}})
+ const before=structuredClone(l.state)
+ const result=await l.repairReplies({execute:true,reason:'do not fabricate'})
+ assert.equal(result.unresolvedCount,1);assert.equal(result.records[0].reason,'no_nonempty_reply_evidence')
+ assert.deepEqual(l.state,before)
+ const {ledger:deleted,tick}=await fixture({retention:{mode:'ttl',durationMs:86400000,expiryAction:'delete'}})
+ await damageReply(deleted);tick(86400001);await deleted.maintain({execute:true,authorization:'user-offline'})
+ const tombstones=structuredClone(deleted.state)
+ assert.equal((await deleted.repairReplies({execute:true,reason:'do not revive deleted'})).skippedCount,1)
+ assert.deepEqual(deleted.state,tombstones)
+})
